@@ -35,12 +35,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       if (firebaseUser) {
         try {
-          const p = await getUserProfile(firebaseUser.uid);
+          // Add a timeout because ad-blockers can cause Firebase getDoc to hang forever instead of throwing.
+          const fetchPromise = getUserProfile(firebaseUser.uid);
+          const timeoutPromise = new Promise<null>((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout fetching profile. Your ad-blocker may be preventing database access.")), 5000)
+          );
+          
+          const p = await Promise.race([fetchPromise, timeoutPromise]);
           setProfile(p);
           if (!p) setError("Profile not found.");
         } catch (err: any) {
           console.error("Error fetching user profile (might be blocked by ad-blocker):", err);
-          setError("Failed to connect to the database. If you use Brave or an ad-blocker, please disable Shields/blocking for this site.");
+          setError(err.message || "Failed to connect to the database. If you use Brave or an ad-blocker, please disable Shields/blocking for this site.");
           setProfile(null);
         }
       } else {
