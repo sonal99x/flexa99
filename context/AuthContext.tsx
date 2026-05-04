@@ -35,13 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       if (firebaseUser) {
         try {
-          // Add a timeout because ad-blockers can cause Firebase getDoc to hang forever instead of throwing.
-          const fetchPromise = getUserProfile(firebaseUser.uid);
-          const timeoutPromise = new Promise<null>((_, reject) =>
-            setTimeout(() => reject(new Error("Timeout fetching profile. Your ad-blocker may be preventing database access.")), 5000)
-          );
-          
-          const p = await Promise.race([fetchPromise, timeoutPromise]);
+          // Removed the forced 5 second timeout so that it naturally relies on onAuthStateChanged and user actions.
+          const p = await getUserProfile(firebaseUser.uid);
           setProfile(p);
           if (!p) setError("Profile not found.");
         } catch (err: any) {
