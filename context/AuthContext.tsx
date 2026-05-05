@@ -35,13 +35,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setError(null);
       if (firebaseUser) {
         try {
-          // Removed the forced 5 second timeout so that it naturally relies on onAuthStateChanged and user actions.
-          const p = await getUserProfile(firebaseUser.uid);
+          const timeoutPromise = new Promise<null>((_, reject) =>
+            setTimeout(() => reject(new Error("Timeout fetching profile from Firestore.")), 7000)
+          );
+          
+          const p = await Promise.race([getUserProfile(firebaseUser.uid), timeoutPromise]);
           setProfile(p);
           if (!p) setError("Profile not found.");
         } catch (err: any) {
-          console.error("Error fetching user profile (might be blocked by ad-blocker):", err);
-          setError(err.message || "Failed to connect to the database. If you use Brave or an ad-blocker, please disable Shields/blocking for this site.");
+          console.error("Error fetching user profile:", err);
+          setError(err.message || "Failed to get document because the client is offline.");
+          // Don't set profile to null, preserve the user so they aren't totally kicked out immediately, but the UI shows error
           setProfile(null);
         }
       } else {
